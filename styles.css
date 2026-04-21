@@ -100,6 +100,53 @@ a { color: inherit; text-decoration: none; }
 ul, ol { list-style: none; }
 img, svg { display: block; max-width: 100%; }
 
+/* ---------- TextType ---------- */
+.text-type {
+    display: inline-block;
+    white-space: normal;
+    visibility: hidden;
+}
+.text-type.text-type--ready { visibility: visible; }
+
+.text-type__content {
+    display: inline;
+}
+
+.text-type__cursor {
+    display: inline-block;
+    margin-left: 0.08em;
+    font-family: var(--mono);
+    font-weight: 500;
+    font-style: normal;
+    font-variation-settings: normal;
+    letter-spacing: 0;
+    color: var(--acid);
+    -webkit-text-stroke: 1px var(--ink);
+    text-stroke: 1px var(--ink);
+    line-height: 0.9;
+    font-size: 0.7em;
+    transform: translateY(-0.12em);
+    animation: text-type-blink var(--blink, 1s) steps(2, end) infinite;
+    will-change: opacity;
+}
+.text-type__cursor--hidden { opacity: 0; }
+
+@keyframes text-type-blink {
+    50% { opacity: 0; }
+}
+
+/* Inside hero — bigger cursor to match the massive display type */
+.hero-title .text-type__cursor {
+    font-size: 0.5em;
+    transform: translate(0.05em, -0.35em);
+    -webkit-text-stroke: 1.5px var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .text-type { visibility: visible !important; }
+    .text-type .text-type__cursor { display: none; }
+}
+
 /* ---------- Grain ---------- */
 .grain {
     position: fixed; inset: 0; z-index: 200; pointer-events: none;
@@ -283,8 +330,12 @@ img, svg { display: block; max-width: 100%; }
     pointer-events: none;
 }
 .stamp {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
     padding: 14px 22px;
+    min-width: 200px;
+    min-height: 46px;
     background: var(--acid);
     color: var(--ink);
     border: var(--edge);
@@ -294,6 +345,16 @@ img, svg { display: block; max-width: 100%; }
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.12em;
+}
+.stamp .text-type__content { display: inline-block; }
+.stamp .text-type__cursor {
+    color: var(--ink);
+    -webkit-text-stroke: 0;
+    text-stroke: 0;
+    font-size: 1em;
+    font-weight: 700;
+    transform: translateY(0);
+    margin-left: 2px;
 }
 
 /* ---------- Buttons ---------- */

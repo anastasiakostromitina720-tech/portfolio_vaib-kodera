@@ -65,12 +65,15 @@
             </div>
         </div>
 
-        <h1 class="hero-title">
-            Я делаю сайты,<br>
-            интерфейсы и <em>digital</em>-<br>
-            проекты, которые <br>
-            <span class="hl">выглядят как&nbsp;<em>вайб</em></span>,<br>
-            а работают как&nbsp;<em>система</em>.
+        <h1 class="hero-title text-type"
+            data-speed="32"
+            data-delay="450"
+            data-variable="true"
+            data-min="18"
+            data-max="55"
+            data-cursor="▊"
+            data-cursor-blink="0.55">
+            <span class="text-type__content">Я делаю сайты,<br>интерфейсы и <em>digital</em>-<br>проекты, которые <br><span class="hl">выглядят как&nbsp;<em>вайб</em></span>,<br>а работают как&nbsp;<em>система</em>.</span>
         </h1>
 
         <div class="hero-bottom">
@@ -90,7 +93,18 @@
         </div>
 
         <div class="hero-tag-card">
-            <span class="stamp">свежий выпуск</span>
+            <span class="stamp text-type"
+                  data-loop="true"
+                  data-texts='["свежий выпуск","issue n°01","open for briefs","сделано с вайбом","vibe check ✓"]'
+                  data-speed="65"
+                  data-deleting-speed="32"
+                  data-pause="1800"
+                  data-delay="1200"
+                  data-cursor="_"
+                  data-cursor-blink="0.45"
+                  data-start-on-visible="true">
+                <span class="text-type__content">свежий выпуск</span>
+            </span>
         </div>
     </section>
 
@@ -531,6 +545,7 @@
     </footer>
 
     <script>
+        /* ---------- Scroll reveal ---------- */
         const io = new IntersectionObserver((entries) => {
             entries.forEach(e => {
                 if (e.isIntersecting) e.target.classList.add('in');
@@ -542,6 +557,195 @@
         window.addEventListener('scroll', () => {
             if (window.scrollY > 40) nav.classList.add('scrolled');
             else nav.classList.remove('scrolled');
+        });
+
+        /* ---------- TextType (vanilla port of react-bits/TextType) ---------- */
+        class TextType {
+            constructor(el, opts = {}) {
+                this.el = el;
+                this.typingSpeed = opts.typingSpeed ?? 50;
+                this.initialDelay = opts.initialDelay ?? 0;
+                this.loop = opts.loop ?? false;
+                this.pauseDuration = opts.pauseDuration ?? 2000;
+                this.deletingSpeed = opts.deletingSpeed ?? 30;
+                this.showCursor = opts.showCursor ?? true;
+                this.cursorCharacter = opts.cursorCharacter ?? '|';
+                this.cursorClassName = opts.cursorClassName ?? '';
+                this.cursorBlinkDuration = opts.cursorBlinkDuration ?? 0.5;
+                this.hideCursorWhileTyping = opts.hideCursorWhileTyping ?? false;
+                this.variableSpeed = opts.variableSpeed ?? null;
+                this.startOnVisible = opts.startOnVisible ?? false;
+                this.onSentenceComplete = opts.onSentenceComplete ?? null;
+                this.onComplete = opts.onComplete ?? null;
+                this.texts = Array.isArray(opts.texts) && opts.texts.length ? opts.texts : null;
+
+                this.content = this.el.querySelector('.text-type__content') || this.el;
+                this._init();
+            }
+
+            _init() {
+                if (this.texts) {
+                    this._initLoopMode();
+                } else {
+                    this._initDomMode();
+                }
+
+                if (this.showCursor) {
+                    this.cursor = document.createElement('span');
+                    this.cursor.className = ('text-type__cursor ' + this.cursorClassName).trim();
+                    this.cursor.textContent = this.cursorCharacter;
+                    this.cursor.style.setProperty('--blink', (this.cursorBlinkDuration * 2) + 's');
+                    this.el.appendChild(this.cursor);
+                }
+
+                this.el.classList.add('text-type--ready');
+
+                if (this.startOnVisible) {
+                    const obs = new IntersectionObserver((entries) => {
+                        if (entries[0].isIntersecting) {
+                            obs.disconnect();
+                            this._start();
+                        }
+                    }, { threshold: 0.15 });
+                    obs.observe(this.el);
+                } else {
+                    this._start();
+                }
+            }
+
+            _initLoopMode() {
+                this.content.textContent = '';
+                this.currentTextIndex = 0;
+                this.charIndex = 0;
+                this.isDeleting = false;
+            }
+
+            _initDomMode() {
+                this.textNodes = [];
+                const walker = document.createTreeWalker(this.content, NodeFilter.SHOW_TEXT);
+                let node;
+                while ((node = walker.nextNode())) {
+                    const raw = node.textContent;
+                    let text = raw.replace(/\s+/g, ' ');
+                    const prev = node.previousSibling;
+                    const next = node.nextSibling;
+                    const prevIsBreak = prev && prev.nodeType === 1 && prev.tagName === 'BR';
+                    const nextIsBreak = next && next.nodeType === 1 && next.tagName === 'BR';
+                    if (!prev || prevIsBreak) text = text.replace(/^ /, '');
+                    if (!next || nextIsBreak) text = text.replace(/ $/, '');
+                    if (text === '') { node.textContent = ''; continue; }
+                    this.textNodes.push({ node, text });
+                    node.textContent = '';
+                }
+            }
+
+            _start() {
+                this.isTyping = true;
+                if (this.cursor && this.hideCursorWhileTyping) {
+                    this.cursor.classList.add('text-type__cursor--hidden');
+                }
+                if (this.texts) {
+                    setTimeout(() => this._tickLoop(), this.initialDelay);
+                } else {
+                    this.nodeIndex = 0;
+                    this.charIndex = 0;
+                    setTimeout(() => this._tick(), this.initialDelay);
+                }
+            }
+
+            _tickLoop() {
+                const current = this.texts[this.currentTextIndex];
+
+                if (this.isDeleting) {
+                    this.content.textContent = current.slice(0, Math.max(0, this.charIndex - 1));
+                    this.charIndex--;
+                    if (this.charIndex <= 0) {
+                        this.isDeleting = false;
+                        if (!this.loop && this.currentTextIndex === this.texts.length - 1) return;
+                        if (this.onSentenceComplete) this.onSentenceComplete(current, this.currentTextIndex);
+                        this.currentTextIndex = (this.currentTextIndex + 1) % this.texts.length;
+                        this.charIndex = 0;
+                        setTimeout(() => this._tickLoop(), Math.max(250, this.pauseDuration / 5));
+                        return;
+                    }
+                    setTimeout(() => this._tickLoop(), this.deletingSpeed);
+                } else {
+                    this.content.textContent = current.slice(0, this.charIndex + 1);
+                    this.charIndex++;
+                    if (this.charIndex >= current.length) {
+                        if (!this.loop && this.currentTextIndex === this.texts.length - 1) return;
+                        setTimeout(() => {
+                            this.isDeleting = true;
+                            this._tickLoop();
+                        }, this.pauseDuration);
+                        return;
+                    }
+                    setTimeout(() => this._tickLoop(), this._speed());
+                }
+            }
+
+            _speed() {
+                if (this.variableSpeed) {
+                    const { min, max } = this.variableSpeed;
+                    return Math.random() * (max - min) + min;
+                }
+                return this.typingSpeed;
+            }
+
+            _tick() {
+                if (this.nodeIndex >= this.textNodes.length) {
+                    this.isTyping = false;
+                    if (this.cursor && this.hideCursorWhileTyping) {
+                        this.cursor.classList.remove('text-type__cursor--hidden');
+                    }
+                    if (this.onComplete) this.onComplete();
+                    return;
+                }
+
+                const entry = this.textNodes[this.nodeIndex];
+                entry.node.textContent = entry.text.slice(0, this.charIndex + 1);
+                this.charIndex++;
+
+                if (this.cursor) {
+                    entry.node.parentNode.insertBefore(this.cursor, entry.node.nextSibling);
+                }
+
+                if (this.charIndex >= entry.text.length) {
+                    this.nodeIndex++;
+                    this.charIndex = 0;
+                }
+
+                setTimeout(() => this._tick(), this._speed());
+            }
+        }
+
+        /* Auto-init every .text-type element from data-attributes */
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        document.querySelectorAll('.text-type').forEach(el => {
+            if (prefersReducedMotion) {
+                el.classList.add('text-type--ready');
+                return;
+            }
+            const d = el.dataset;
+            let texts = null;
+            if (d.texts) {
+                try { texts = JSON.parse(d.texts); } catch (_) { texts = null; }
+            }
+            new TextType(el, {
+                texts,
+                typingSpeed: d.speed ? Number(d.speed) : 50,
+                initialDelay: d.delay ? Number(d.delay) : 0,
+                loop: d.loop === 'true',
+                pauseDuration: d.pause ? Number(d.pause) : 2000,
+                deletingSpeed: d.deletingSpeed ? Number(d.deletingSpeed) : 30,
+                cursorCharacter: d.cursor || '|',
+                cursorBlinkDuration: d.cursorBlink ? Number(d.cursorBlink) : 0.5,
+                hideCursorWhileTyping: d.hideCursor === 'true',
+                startOnVisible: d.startOnVisible === 'true',
+                variableSpeed: d.variable === 'true'
+                    ? { min: Number(d.min) || 30, max: Number(d.max) || 80 }
+                    : null,
+            });
         });
     </script>
 </body>
